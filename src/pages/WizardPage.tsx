@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useWizard } from '../context/WizardContext';
+import { storageService } from '../services/storageService';
 import { 
   Check, 
   ArrowLeft, 
@@ -198,7 +199,17 @@ export const WizardPage: React.FC = () => {
             ) : (
               <button
                 type="button"
-                onClick={() => navigate(`/b/${pageData.slug}`)}
+                onClick={async () => {
+                  // Generate shareable URL with embedded page data (#d=...) so it works
+                  // even if the page hasn't been saved to IndexedDB on this device.
+                  // We MUST use window.location.href (not navigate) to preserve the #hash.
+                  try {
+                    const url = await storageService.generateShareableUrl(pageData);
+                    window.location.href = url;
+                  } catch {
+                    window.location.href = `${window.location.origin}/b/${pageData.slug}`;
+                  }
+                }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-colors"
               >
                 <Sparkles className="w-4 h-4" />

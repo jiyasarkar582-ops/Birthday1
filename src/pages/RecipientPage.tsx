@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { storageService } from '../services/storageService';
+import { decodePageFromUrlString } from '../services/urlSharing';
 import { BirthdayPage } from '../types';
 import { THEMES } from '../data/themes';
 import { WelcomeEnvelope } from '../components/recipient/WelcomeEnvelope';
@@ -23,10 +24,32 @@ export const RecipientPage: React.FC = () => {
   useEffect(() => {
     const fetchPage = async () => {
       setLoading(true);
+
+      // 1. First try to decode page data from URL hash (#d=...)
+      //    This is how cross-device sharing works without a backend.
+      const hash = window.location.hash;
+      if (hash && hash.includes('d=')) {
+        try {
+          const hashData = hash.split('d=')[1]?.split('&')[0];
+          if (hashData) {
+            const decoded = await decodePageFromUrlString(hashData);
+            if (decoded) {
+              setPage(decoded);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to decode page from URL hash, falling back to local storage', err);
+        }
+      }
+
+      // 2. Fall back to local IndexedDB / localStorage lookup (same device)
       if (slug) {
         const found = await storageService.getPageBySlug(slug);
         setPage(found);
       }
+
       setLoading(false);
     };
 
