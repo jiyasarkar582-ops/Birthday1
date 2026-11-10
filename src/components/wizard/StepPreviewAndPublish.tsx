@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWizard } from '../../context/WizardContext';
 import { THEMES } from '../../data/themes';
 import { storageService } from '../../services/storageService';
-import { QRCodeSVG } from 'qrcode.react';
+import { SafeQRCode } from '../common/SafeQRCode';
 import { 
   Smartphone, 
   Monitor, 
@@ -205,11 +205,11 @@ export const StepPreviewAndPublish: React.FC = () => {
             {/* QR Code Column */}
             <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-rose-100 shadow-xs">
               <div className="p-2 bg-white rounded-xl shadow-xs">
-                <QRCodeSVG
+                <SafeQRCode
                   id="published-qr-code"
                   value={activeUrl}
                   size={130}
-                  level="H"
+                  level="M"
                   includeMargin={true}
                 />
               </div>

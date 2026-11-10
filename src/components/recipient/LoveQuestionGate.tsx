@@ -23,11 +23,12 @@ export const LoveQuestionGate: React.FC<LoveQuestionGateProps> = ({
   const [noButtonPosition, setNoButtonPosition] = useState({ x: 0, y: 0 });
   const [showNoWarning, setShowNoWarning] = useState(false);
 
-  // Determine display name
-  const isAbhi = recipientName.toLowerCase().includes('abhi');
+  // Determine display name safely
+  const safeName = recipientName || 'Abhiiii';
+  const isAbhi = safeName.toLowerCase().includes('abhi');
   const displayTitle = isAbhi 
     ? 'open it abhiiii ❤️' 
-    : `open it ${recipientName.toLowerCase()} ❤️`;
+    : `open it ${safeName.toLowerCase()} ❤️`;
 
   const handlePositiveChoice = (optionLabel: string) => {
     setSelectedOption(optionLabel);

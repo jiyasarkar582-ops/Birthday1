@@ -54,6 +54,17 @@ export class ErrorBoundary extends Component<Props, State> {
               <span>Go Home</span>
             </a>
           </div>
+
+          {this.state.error && (
+            <details className="mt-8 text-left max-w-lg mx-auto p-3 bg-white/80 rounded-xl border border-rose-200 text-xs text-stone-600">
+              <summary className="cursor-pointer font-semibold text-rose-500 hover:text-rose-600 select-none">
+                Technical Details
+              </summary>
+              <pre className="mt-2 p-2 bg-stone-100 rounded text-[11px] overflow-x-auto text-rose-700 font-mono whitespace-pre-wrap">
+                {this.state.error.message || String(this.state.error)}
+              </pre>
+            </details>
+          )}
         </div>
       );
     }
@@ -61,3 +72,4 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+

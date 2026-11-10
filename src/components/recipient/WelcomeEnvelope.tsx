@@ -27,10 +27,11 @@ export const WelcomeEnvelope: React.FC<WelcomeEnvelopeProps> = ({
 }) => {
   const [isOpening, setIsOpening] = useState(false);
 
-  const isAbhi = recipientName.toLowerCase().includes('abhi');
+  const safeName = recipientName || 'Abhiiii';
+  const isAbhi = safeName.toLowerCase().includes('abhi');
   const defaultLabel = isAbhi 
     ? 'open it abhiiii ❤️' 
-    : `Open it ${recipientName} ❤️`;
+    : `Open it ${safeName} ❤️`;
 
   const handleEnvelopeClick = () => {
     if (isOpen || isOpening) return;
@@ -42,7 +43,7 @@ export const WelcomeEnvelope: React.FC<WelcomeEnvelopeProps> = ({
     }, 1200);
   };
 
-  const initialLetter = recipientName.charAt(0).toUpperCase() || '❤';
+  const initialLetter = safeName.charAt(0).toUpperCase() || '❤';
 
   return (
     <div className="relative min-h-[85vh] flex flex-col items-center justify-center px-4 py-12 select-none">

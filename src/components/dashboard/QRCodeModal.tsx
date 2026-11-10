@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { SafeQRCode } from '../common/SafeQRCode';
 import { Modal } from '../common/Modal';
 import { Copy, Check, Download, Share2 } from 'lucide-react';
 import { BirthdayPage } from '../../types';
@@ -68,11 +68,11 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ page, isOpen, onClose 
       <div className="flex flex-col items-center text-center space-y-6">
         {/* QR Code Container with luxury styling */}
         <div className="p-4 bg-white rounded-3xl shadow-xl border border-rose-100 flex items-center justify-center">
-          <QRCodeSVG
+          <SafeQRCode
             id={`modal-qr-${page.id}`}
             value={publicUrl}
             size={200}
-            level="H"
+            level="M"
             includeMargin={true}
           />
         </div>
