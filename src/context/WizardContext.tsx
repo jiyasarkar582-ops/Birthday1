@@ -126,7 +126,7 @@ export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let { width, height } = img;
-          const maxDim = 800;
+          const maxDim = 600;
           if (width > maxDim || height > maxDim) {
             if (width > height) {
               height = Math.round((height * maxDim) / width);
@@ -140,7 +140,7 @@ export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.72));
+          resolve(canvas.toDataURL('image/jpeg', 0.70));
         };
         img.onerror = () => resolve(result);
         img.src = result;

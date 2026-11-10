@@ -271,6 +271,52 @@ export const storageService = {
     return updatedPage;
   },
 
+  // Helper to retrieve user's full page and photos directly from local database
+  async getPageFromLocal(slug: string): Promise<BirthdayPage | null> {
+    try {
+      const db = await openDB();
+      const page = await new Promise<BirthdayPage | null>((resolve) => {
+        const tx = db.transaction([STORE_PAGES], 'readonly');
+        const store = tx.objectStore(STORE_PAGES);
+        const index = store.index('slug');
+        const req = index.get(slug);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+
+      if (page) {
+        // Query stored photos table to ensure all photos and captions are loaded
+        try {
+          const photos = await new Promise<BirthdayPhoto[]>((res) => {
+            const pTx = db.transaction([STORE_PHOTOS], 'readonly');
+            const pStore = pTx.objectStore(STORE_PHOTOS);
+            const pIndex = pStore.index('page_id');
+            const pReq = pIndex.getAll(page.id);
+            pReq.onsuccess = () => res(pReq.result || []);
+            pReq.onerror = () => res([]);
+          });
+          if (photos.length > 0) {
+            page.photos = photos.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          }
+        } catch {}
+
+        return page;
+      }
+    } catch (e) {
+      console.warn('IndexedDB local fetch error:', e);
+    }
+
+    try {
+      const pageId = localStorage.getItem(`heartfelt_slug_${slug}`);
+      if (pageId) {
+        const raw = localStorage.getItem(`heartfelt_page_${pageId}`);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch {}
+
+    return null;
+  },
+
   // Get page by unique public slug
   async getPageBySlug(slug: string): Promise<BirthdayPage | null> {
     // 1. Check URL fragment or query for cross-device shared payload
@@ -288,6 +334,19 @@ export const storageService = {
         try {
           const decoded = await decodePageFromUrlString(encoded);
           if (decoded) {
+            // Check if local device storage already has this page with full photos
+            const localExisting = await this.getPageFromLocal(decoded.slug || slug);
+            if (localExisting && localExisting.photos && localExisting.photos.length > 0) {
+              if (!decoded.photos || decoded.photos.length === 0) {
+                decoded.photos = localExisting.photos;
+              } else if (localExisting.photos.length >= decoded.photos.length) {
+                decoded.photos = localExisting.photos.map((lp, idx) => ({
+                  ...lp,
+                  caption: decoded.photos[idx]?.caption || lp.caption,
+                  url: lp.url || decoded.photos[idx]?.url,
+                }));
+              }
+            }
             // Automatically persist to recipient device's storage
             await this.savePage(decoded);
             return decoded;
@@ -298,35 +357,11 @@ export const storageService = {
       }
     }
 
-    // 2. Check IndexedDB first for user's customized celebration
-    try {
-      const db = await openDB();
-      const page = await new Promise<BirthdayPage | null>((resolve) => {
-        const tx = db.transaction([STORE_PAGES], 'readonly');
-        const store = tx.objectStore(STORE_PAGES);
-        const index = store.index('slug');
-        const req = index.get(slug);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      });
-
-      if (page) {
-        page.view_count = (page.view_count || 0) + 1;
-        return page;
-      }
-    } catch (e) {
-      console.warn('IndexedDB query error:', e);
-    }
-
-    // 3. Fallback to localStorage for user's customized celebration
-    try {
-      const pageId = localStorage.getItem(`heartfelt_slug_${slug}`);
-      if (pageId) {
-        const raw = localStorage.getItem(`heartfelt_page_${pageId}`);
-        if (raw) return JSON.parse(raw);
-      }
-    } catch {
-      // ignore
+    // 2. Check local database for user's customized celebration
+    const localPage = await this.getPageFromLocal(slug);
+    if (localPage) {
+      localPage.view_count = (localPage.view_count || 0) + 1;
+      return localPage;
     }
 
     // 4. Check Supabase if configured

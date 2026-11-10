@@ -114,6 +114,44 @@ export function decompressPayloadToPage(payload: CompactPayload): BirthdayPage {
   };
 }
 
+// Helper to resize a base64 image data URL to a compact thumbnail for URL transport
+async function shrinkImageForUrl(dataUrl: string, maxDim = 360, quality = 0.55): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+    return dataUrl;
+  }
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return dataUrl;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 // Helper to compress a JSON string into a URL-safe base64 string
 async function compressJsonToUrlSafe(jsonStr: string): Promise<string> {
   if (typeof CompressionStream !== 'undefined') {
@@ -136,17 +174,64 @@ async function compressJsonToUrlSafe(jsonStr: string): Promise<string> {
   return 'b1_' + btoa(encodeURIComponent(jsonStr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Compress to URL-safe string with length safety for Safari/WebKit (max ~60KB)
+// Compress to URL-safe string while preserving all photos and captions within safe limits
 export async function encodePageToUrlString(page: BirthdayPage): Promise<string> {
-  const compact = compressPageToPayload(page);
+  const baseCompact = compressPageToPayload(page);
+
+  // Resize user-uploaded photos to compact web thumbnails for URL transport
+  const optimizedPhotos = await Promise.all(
+    (page.photos || []).map(async (photo) => {
+      let compactUrl = photo.url;
+      if (photo.url && photo.url.startsWith('data:image/')) {
+        try {
+          compactUrl = await shrinkImageForUrl(photo.url, 360, 0.55);
+        } catch {
+          compactUrl = photo.url;
+        }
+      }
+      return {
+        id: photo.id,
+        u: compactUrl,
+        c: photo.caption || '',
+        s: photo.sort_order ?? 0,
+      };
+    })
+  );
+
+  const compact: CompactPayload = {
+    ...baseCompact,
+    p: optimizedPhotos,
+  };
+
   let encoded = await compressJsonToUrlSafe(JSON.stringify(compact));
 
-  // Safari and WebKit browsers have a strict 65k character URL limit.
-  // If user uploaded high-res photos causing the payload to exceed 50k chars,
-  // omit photos from the URL hash so the rest of the surprise (custom text,
-  // love question, music, effects, cake) still transmits flawlessly across devices.
-  if (encoded.length > 50000 && compact.p.length > 0) {
-    compact.p = [];
+  // If still too large (> 50k chars) because there are many photos, shrink to 240px @ 0.45
+  if (encoded.length > 50000 && optimizedPhotos.length > 0) {
+    const microPhotos = await Promise.all(
+      (page.photos || []).map(async (photo) => {
+        let microUrl = photo.url;
+        if (photo.url && photo.url.startsWith('data:image/')) {
+          try {
+            microUrl = await shrinkImageForUrl(photo.url, 240, 0.45);
+          } catch {
+            microUrl = photo.url;
+          }
+        }
+        return {
+          id: photo.id,
+          u: microUrl,
+          c: photo.caption || '',
+          s: photo.sort_order ?? 0,
+        };
+      })
+    );
+    compact.p = microPhotos;
+    encoded = await compressJsonToUrlSafe(JSON.stringify(compact));
+  }
+
+  // If even that exceeds 55000, keep as many photo images as fit while always preserving captions
+  if (encoded.length > 55000 && compact.p.length > 1) {
+    compact.p = compact.p.map((p, idx) => (idx < 2 ? p : { ...p, u: '' }));
     encoded = await compressJsonToUrlSafe(JSON.stringify(compact));
   }
 

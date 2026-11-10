@@ -48,3 +48,4 @@ export const SafeQRCode: React.FC<SafeQRCodeProps> = ({
     );
   }
 };
+
