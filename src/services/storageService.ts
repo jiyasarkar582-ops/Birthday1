@@ -298,16 +298,38 @@ export const storageService = {
       }
     }
 
-    if (
-      slug === 'abhi-celebration' || 
-      slug === 'sophia-celebration' || 
-      slug === DEMO_PAGE.slug ||
-      slug.toLowerCase().includes('abhi')
-    ) {
-      return ABHI_DEMO_PAGE;
+    // 2. Check IndexedDB first for user's customized celebration
+    try {
+      const db = await openDB();
+      const page = await new Promise<BirthdayPage | null>((resolve) => {
+        const tx = db.transaction([STORE_PAGES], 'readonly');
+        const store = tx.objectStore(STORE_PAGES);
+        const index = store.index('slug');
+        const req = index.get(slug);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+
+      if (page) {
+        page.view_count = (page.view_count || 0) + 1;
+        return page;
+      }
+    } catch (e) {
+      console.warn('IndexedDB query error:', e);
     }
 
-    // Check Supabase first if configured
+    // 3. Fallback to localStorage for user's customized celebration
+    try {
+      const pageId = localStorage.getItem(`heartfelt_slug_${slug}`);
+      if (pageId) {
+        const raw = localStorage.getItem(`heartfelt_page_${pageId}`);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 4. Check Supabase if configured
     if (isSupabaseConfigured() && supabase) {
       try {
         const { data: pageData, error } = await supabase
@@ -372,36 +394,13 @@ export const storageService = {
       }
     }
 
-    // Try IndexedDB
-    try {
-      const db = await openDB();
-      const page = await new Promise<BirthdayPage | null>((resolve) => {
-        const tx = db.transaction([STORE_PAGES], 'readonly');
-        const store = tx.objectStore(STORE_PAGES);
-        const index = store.index('slug');
-        const req = index.get(slug);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      });
-
-      if (page) {
-        // Increment view count
-        page.view_count = (page.view_count || 0) + 1;
-        return page;
-      }
-    } catch (e) {
-      console.warn('IndexedDB query error:', e);
-    }
-
-    // Fallback to localStorage
-    try {
-      const pageId = localStorage.getItem(`heartfelt_slug_${slug}`);
-      if (pageId) {
-        const raw = localStorage.getItem(`heartfelt_page_${pageId}`);
-        if (raw) return JSON.parse(raw);
-      }
-    } catch {
-      // ignore
+    // 5. Only if not found anywhere else, check if this is the explicit demo slug
+    if (
+      slug === 'abhi-celebration' || 
+      slug === 'sophia-celebration' || 
+      slug === DEMO_PAGE.slug
+    ) {
+      return ABHI_DEMO_PAGE;
     }
 
     return null;

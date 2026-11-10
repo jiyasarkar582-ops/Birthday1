@@ -114,12 +114,8 @@ export function decompressPayloadToPage(payload: CompactPayload): BirthdayPage {
   };
 }
 
-// Compress to URL-safe string
-export async function encodePageToUrlString(page: BirthdayPage): Promise<string> {
-  const compact = compressPageToPayload(page);
-  const jsonStr = JSON.stringify(compact);
-
-  // Modern browser compression with CompressionStream (Deflate)
+// Helper to compress a JSON string into a URL-safe base64 string
+async function compressJsonToUrlSafe(jsonStr: string): Promise<string> {
   if (typeof CompressionStream !== 'undefined') {
     try {
       const stream = new Blob([new TextEncoder().encode(jsonStr)]).stream();
@@ -140,17 +136,38 @@ export async function encodePageToUrlString(page: BirthdayPage): Promise<string>
   return 'b1_' + btoa(encodeURIComponent(jsonStr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// Compress to URL-safe string with length safety for Safari/WebKit (max ~60KB)
+export async function encodePageToUrlString(page: BirthdayPage): Promise<string> {
+  const compact = compressPageToPayload(page);
+  let encoded = await compressJsonToUrlSafe(JSON.stringify(compact));
+
+  // Safari and WebKit browsers have a strict 65k character URL limit.
+  // If user uploaded high-res photos causing the payload to exceed 50k chars,
+  // omit photos from the URL hash so the rest of the surprise (custom text,
+  // love question, music, effects, cake) still transmits flawlessly across devices.
+  if (encoded.length > 50000 && compact.p.length > 0) {
+    compact.p = [];
+    encoded = await compressJsonToUrlSafe(JSON.stringify(compact));
+  }
+
+  return encoded;
+}
+
 // Decode from URL-safe string
 export async function decodePageFromUrlString(encoded: string): Promise<BirthdayPage | null> {
   try {
-    let mode = '';
     let raw = encoded;
-    if (encoded.startsWith('c1_')) {
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {}
+
+    let mode = '';
+    if (raw.startsWith('c1_')) {
       mode = 'compressed';
-      raw = encoded.slice(3);
-    } else if (encoded.startsWith('b1_')) {
+      raw = raw.slice(3);
+    } else if (raw.startsWith('b1_')) {
       mode = 'base64';
-      raw = encoded.slice(3);
+      raw = raw.slice(3);
     }
 
     let base64 = raw.replace(/-/g, '+').replace(/_/g, '/');

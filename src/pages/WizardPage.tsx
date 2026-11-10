@@ -33,6 +33,7 @@ export const WizardPage: React.FC = () => {
     loadPageForEditing, 
     validateStep, 
     saveDraft, 
+    publishPage,
     isSaving,
     pageData 
   } = useWizard();
@@ -199,21 +200,21 @@ export const WizardPage: React.FC = () => {
             ) : (
               <button
                 type="button"
+                disabled={isSaving}
                 onClick={async () => {
-                  // Generate shareable URL with embedded page data (#d=...) so it works
-                  // even if the page hasn't been saved to IndexedDB on this device.
-                  // We MUST use window.location.href (not navigate) to preserve the #hash.
                   try {
-                    const url = await storageService.generateShareableUrl(pageData);
+                    const published = await publishPage();
+                    const url = await storageService.generateShareableUrl(published);
                     window.location.href = url;
-                  } catch {
+                  } catch (e) {
+                    console.error('Error publishing page:', e);
                     window.location.href = `${window.location.origin}/b/${pageData.slug}`;
                   }
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-colors disabled:opacity-60"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>View Final Website</span>
+                <span>{isSaving ? 'Publishing...' : 'View Final Website'}</span>
               </button>
             )}
           </div>

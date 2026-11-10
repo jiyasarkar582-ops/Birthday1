@@ -8,6 +8,7 @@ import { WizardPage } from './pages/WizardPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PreviewPage } from './pages/PreviewPage';
 import { RecipientPage } from './pages/RecipientPage';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const getBasename = (): string => {
   if (typeof window !== 'undefined') {
@@ -21,35 +22,37 @@ const getBasename = (): string => {
 
 export const App: React.FC = () => {
   return (
-    <WizardProvider>
-      <BrowserRouter basename={getBasename()}>
-        <div className="flex flex-col min-h-screen text-stone-900 bg-stone-50 selection:bg-pink-200 selection:text-pink-900">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              {/* Landing Page */}
-              <Route path="/" element={<LandingPage />} />
+    <ErrorBoundary>
+      <WizardProvider>
+        <BrowserRouter basename={getBasename()}>
+          <div className="flex flex-col min-h-screen text-stone-900 bg-stone-50 selection:bg-pink-200 selection:text-pink-900">
+            <Navbar />
+            <main className="flex-1">
+              <Routes>
+                {/* Landing Page */}
+                <Route path="/" element={<LandingPage />} />
 
-              {/* Multi-Step Creation Wizard */}
-              <Route path="/create" element={<WizardPage />} />
+                {/* Multi-Step Creation Wizard */}
+                <Route path="/create" element={<WizardPage />} />
 
-              {/* Creator Dashboard */}
-              <Route path="/dashboard" element={<DashboardPage />} />
+                {/* Creator Dashboard */}
+                <Route path="/dashboard" element={<DashboardPage />} />
 
-              {/* Creator Preview */}
-              <Route path="/preview/:id" element={<PreviewPage />} />
+                {/* Creator Preview */}
+                <Route path="/preview/:id" element={<PreviewPage />} />
 
-              {/* Public Recipient Experience */}
-              <Route path="/b/:slug" element={<RecipientPage />} />
+                {/* Public Recipient Experience */}
+                <Route path="/b/:slug" element={<RecipientPage />} />
 
-              {/* Fallback route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </BrowserRouter>
-    </WizardProvider>
+                {/* Fallback route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </BrowserRouter>
+      </WizardProvider>
+    </ErrorBoundary>
   );
 };
 
