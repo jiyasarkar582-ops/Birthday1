@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWizard } from '../../context/WizardContext';
 import { THEMES } from '../../data/themes';
+import { storageService } from '../../services/storageService';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Smartphone, 
@@ -31,13 +32,27 @@ export const StepPreviewAndPublish: React.FC = () => {
   const [publishSuccess, setPublishSuccess] = useState(!!publishedSlug);
   const [loveGatePassed, setLoveGatePassed] = useState(false);
   const [previewEnvelopeOpen, setPreviewEnvelopeOpen] = useState(false);
+  const [shareableUrl, setShareableUrl] = useState('');
 
   const theme = THEMES[pageData.theme] || THEMES['romantic-pink'];
-  const publicUrl = `${window.location.origin}/b/${publishedSlug || pageData.slug}`;
+
+  useEffect(() => {
+    let isMounted = true;
+    const generateUrl = async () => {
+      const url = await storageService.generateShareableUrl(pageData);
+      if (isMounted) setShareableUrl(url);
+    };
+    generateUrl();
+    return () => { isMounted = false; };
+  }, [pageData, publishedSlug]);
+
+  const activeUrl = shareableUrl || `${window.location.origin}/b/${publishedSlug || pageData.slug}`;
 
   const handlePublish = async () => {
     try {
-      await publishPage();
+      const published = await publishPage();
+      const url = await storageService.generateShareableUrl(published);
+      setShareableUrl(url);
       setPublishSuccess(true);
     } catch (e) {
       console.error('Failed to publish', e);
@@ -45,13 +60,13 @@ export const StepPreviewAndPublish: React.FC = () => {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(publicUrl);
+    navigator.clipboard.writeText(activeUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
   const shareWhatsApp = () => {
-    const text = `Hey ${pageData.recipient_name}! I made a special birthday surprise website for you 🎉 Open it here: ${publicUrl}`;
+    const text = `Hey ${pageData.recipient_name}! I made a special birthday surprise website for you 🎉 Open it here: ${activeUrl}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -151,7 +166,7 @@ export const StepPreviewAndPublish: React.FC = () => {
                 <input
                   type="text"
                   readOnly
-                  value={publicUrl}
+                  value={activeUrl}
                   className="w-full px-4 py-2.5 rounded-2xl bg-white border border-stone-200 text-sm font-medium text-stone-800 select-all"
                 />
                 <button
@@ -176,7 +191,7 @@ export const StepPreviewAndPublish: React.FC = () => {
                 </button>
 
                 <a
-                  href={publicUrl}
+                  href={activeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs transition-colors"
@@ -192,7 +207,7 @@ export const StepPreviewAndPublish: React.FC = () => {
               <div className="p-2 bg-white rounded-xl shadow-xs">
                 <QRCodeSVG
                   id="published-qr-code"
-                  value={publicUrl}
+                  value={activeUrl}
                   size={130}
                   level="H"
                   includeMargin={true}

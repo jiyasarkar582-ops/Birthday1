@@ -116,39 +116,34 @@ export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
   };
 
-  // Convert uploaded image file to high-quality base64 Data URL or compressed blob
+  // Convert uploaded image file to lightweight, high-quality compressed base64 Data URL
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        // Optionally resize very large images (>2MB) to prevent browser memory spikes
-        if (file.size > 2 * 1024 * 1024) {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let { width, height } = img;
-            const maxDim = 1600;
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const maxDim = 800;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
             }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.88));
-          };
-          img.onerror = () => resolve(result);
-          img.src = result;
-        } else {
-          resolve(result);
-        }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        img.onerror = () => resolve(result);
+        img.src = result;
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);

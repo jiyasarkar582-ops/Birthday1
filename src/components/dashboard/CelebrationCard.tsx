@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BirthdayPage } from '../../types';
 import { THEMES } from '../../data/themes';
+import { storageService } from '../../services/storageService';
 import { 
   Heart, 
   ExternalLink, 
@@ -34,10 +35,15 @@ export const CelebrationCard: React.FC<CelebrationCardProps> = ({
 
   const theme = THEMES[page.theme] || THEMES['romantic-pink'];
   const publicUrl = `${window.location.origin}/b/${page.slug}`;
-  const isDemo = page.id === 'demo-surprise-001';
+  const isDemo = page.id === 'demo-surprise-001' || page.id === 'demo-surprise-abhi';
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(publicUrl);
+  const copyLink = async () => {
+    try {
+      const url = await storageService.generateShareableUrl(page);
+      navigator.clipboard.writeText(url);
+    } catch {
+      navigator.clipboard.writeText(publicUrl);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

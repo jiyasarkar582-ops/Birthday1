@@ -9,10 +9,20 @@ import { DashboardPage } from './pages/DashboardPage';
 import { PreviewPage } from './pages/PreviewPage';
 import { RecipientPage } from './pages/RecipientPage';
 
+const getBasename = (): string => {
+  if (typeof window !== 'undefined') {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts.length > 0 && !['create', 'dashboard', 'b', 'preview'].includes(parts[0])) {
+      return '/' + parts[0];
+    }
+  }
+  return '';
+};
+
 export const App: React.FC = () => {
   return (
     <WizardProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={getBasename()}>
         <div className="flex flex-col min-h-screen text-stone-900 bg-stone-50 selection:bg-pink-200 selection:text-pink-900">
           <Navbar />
           <main className="flex-1">

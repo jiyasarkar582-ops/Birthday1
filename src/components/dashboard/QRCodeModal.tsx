@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '../common/Modal';
-import { Copy, Check, Download, Share2, ExternalLink } from 'lucide-react';
+import { Copy, Check, Download, Share2 } from 'lucide-react';
 import { BirthdayPage } from '../../types';
+import { storageService } from '../../services/storageService';
 
 interface QRCodeModalProps {
   page: BirthdayPage | null;
@@ -12,10 +13,21 @@ interface QRCodeModalProps {
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({ page, isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [shareableUrl, setShareableUrl] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (page) {
+      storageService.generateShareableUrl(page).then((url) => {
+        if (isMounted) setShareableUrl(url);
+      });
+    }
+    return () => { isMounted = false; };
+  }, [page]);
 
   if (!page) return null;
 
-  const publicUrl = `${window.location.origin}/b/${page.slug}`;
+  const publicUrl = shareableUrl || `${window.location.origin}/b/${page.slug}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(publicUrl);

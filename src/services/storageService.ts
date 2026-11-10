@@ -1,5 +1,6 @@
 import { BirthdayPage, BirthdayPhoto } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { encodePageToUrlString, decodePageFromUrlString } from './urlSharing';
 
 const DB_NAME = 'HeartfeltDB';
 const DB_VERSION = 1;
@@ -272,7 +273,37 @@ export const storageService = {
 
   // Get page by unique public slug
   async getPageBySlug(slug: string): Promise<BirthdayPage | null> {
-    if (slug === 'abhi-celebration' || slug === 'sophia-celebration' || slug === DEMO_PAGE.slug) {
+    // 1. Check URL fragment or query for cross-device shared payload
+    if (typeof window !== 'undefined') {
+      let encoded = '';
+      if (window.location.hash.includes('d=')) {
+        const match = window.location.hash.match(/[#&]d=([^&]+)/);
+        if (match) encoded = match[1];
+      } else if (window.location.search.includes('d=')) {
+        const params = new URLSearchParams(window.location.search);
+        encoded = params.get('d') || '';
+      }
+
+      if (encoded) {
+        try {
+          const decoded = await decodePageFromUrlString(encoded);
+          if (decoded) {
+            // Automatically persist to recipient device's storage
+            await this.savePage(decoded);
+            return decoded;
+          }
+        } catch (e) {
+          console.error('Failed to unpack page from URL', e);
+        }
+      }
+    }
+
+    if (
+      slug === 'abhi-celebration' || 
+      slug === 'sophia-celebration' || 
+      slug === DEMO_PAGE.slug ||
+      slug.toLowerCase().includes('abhi')
+    ) {
       return ABHI_DEMO_PAGE;
     }
 
@@ -456,6 +487,25 @@ export const storageService = {
 
     page.status = page.status === 'published' ? 'draft' : 'published';
     return await this.savePage(page);
+  },
+
+  // Generate universal shareable URL that works cross-device even without backend
+  async generateShareableUrl(page: BirthdayPage): Promise<string> {
+    const origin = window.location.origin;
+    let repoPrefix = '';
+    if (typeof window !== 'undefined') {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length > 0 && !['create', 'dashboard', 'b', 'preview'].includes(parts[0])) {
+        repoPrefix = '/' + parts[0];
+      }
+    }
+    
+    try {
+      const hashData = await encodePageToUrlString(page);
+      return `${origin}${repoPrefix}/b/${page.slug}#d=${hashData}`;
+    } catch {
+      return `${origin}${repoPrefix}/b/${page.slug}`;
+    }
   }
 };
 
